@@ -1,20 +1,63 @@
 pipeline {
     agent any
     stages {
-        stage('Build') {
+        stage('Update Packages') {
             steps {
-                echo 'Building...'
+                script {
+                    // Update the package list
+                    sh 'apt-get update'
+                    sh 'apt-get install -y libpq-dev'
+                }
             }
         }
-        stage('Test') {
+        stage('Install Python') {
             steps {
-                echo 'Testing...'
+                // Install Python and pip
+                sh 'apt-get install -y python3 python3-pip python3-venv'
             }
         }
-        stage('Deploy') {
+        stage('Clone Repository') {
             steps {
-                echo 'Deploying...'
+                script {
+                    // Clone the Git repository
+                    git branch: 'main', url: 'https://github.com/DanyaHDanny/dqe-automation'
+                }
             }
+        }
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    // Create a virtual environment
+                    sh '''
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install -r data_dev/requirements.txt
+                    '''
+                }
+            }
+        }
+        stage('Run main') {
+            steps {
+                script {
+                    // Activate the virtual environment, set PYTHONPATH, and run the script
+                    sh '''
+                        . venv/bin/activate
+                        export PYTHONPATH=$WORKSPACE
+                        python data_dev/main.py
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Pipeline execution completed.'
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Please check the logs for details.'
         }
     }
 }
