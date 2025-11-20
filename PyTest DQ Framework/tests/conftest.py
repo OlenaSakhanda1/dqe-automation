@@ -8,7 +8,11 @@ db_user = os.getenv("POSTGRES_SECRET_USR")
 db_password = os.getenv("POSTGRES_SECRET_PSW")
 
 def pytest_addoption(parser):
-    parser.addoption("--db_host", action="store", default="localhost", help="Database host")
+    parser.addoption("--db_host", action="store", default="localhost")
+    parser.addoption("--db_port", action="store", default="5432")
+    parser.addoption("--db_name", action="store", default="mydatabase")
+    parser.addoption("--db_user", action="store")
+    parser.addoption("--db_password", action="store")
 
 def pytest_configure(config):
     if not os.getenv("POSTGRES_SECRET_USR") or not os.getenv("POSTGRES_SECRET_PSW"):
