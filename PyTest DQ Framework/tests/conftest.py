@@ -11,9 +11,9 @@ def pytest_addoption(parser):
     parser.addoption("--db_host", action="store", default="localhost", help="Database host")
 
 def pytest_configure(config):
-    """
-    Validates that all required command-line options are provided.
-    """
+    if not os.getenv("POSTGRES_SECRET_USR") or not os.getenv("POSTGRES_SECRET_PSW"):
+        pytest.fail("Database credentials are missing in environment variables")
+
     required_options = [
         "--db_user", "--db_password"
     ]
