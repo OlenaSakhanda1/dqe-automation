@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 class DataQualityLibrary:
     """
     A library of static methods for performing data quality checks on pandas DataFrames.
@@ -9,8 +8,7 @@ class DataQualityLibrary:
     the quality of data in DataFrames. Each method performs a specific data quality
     check and uses assertions to ensure that the data meets the expected conditions.
     """
-
-   def check_dataset_is_not_empty(self, df: pd.DataFrame):
+    def check_dataset_is_not_empty(self, df: pd.DataFrame):
         assert not df.empty, "❌ Dataset is empty!"
         print(f"✅ Dataset contains {len(df)} rows.")
 
@@ -35,4 +33,3 @@ class DataQualityLibrary:
         missing = set(source_df[key_columns].dropna().apply(tuple, axis=1)) - \
                   set(target_df[key_columns].dropna().apply(tuple, axis=1))
         assert not missing, f"❌ Missing {len(missing)} key records in target dataset!"
-        print("✅ All key records from source exist in target dataset.")
