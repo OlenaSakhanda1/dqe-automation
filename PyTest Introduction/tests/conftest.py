@@ -19,7 +19,7 @@ def df(file_path):
 def validate_schema(df):
     def _validate(actual_schema, expected_schema):
         return set(actual_schema) == set(expected_schema)
-
+    return _validate
 
 # Pytest hook to mark unmarked tests with a custom mark
 def pytest_collection_modifyitems(items):
