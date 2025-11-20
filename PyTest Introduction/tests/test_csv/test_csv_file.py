@@ -13,9 +13,10 @@ def test_duplicates(df):
     assert duplicates.empty, f"Duplicate rows found:\n{duplicates}"
 
 @pytest.mark.validate_csv
-def test_validate_schema(df):
-    header = df.columns.tolist()
-    assert header == ['id', 'name', 'age', 'email', 'is_active']
+def test_validate_schema(df, validate_schema):
+    expected_schema = ['id', 'name', 'age', 'email', 'is_active']
+    actual_schema = df.columns.tolist()
+    assert validate_schema(actual_schema, expected_schema), f"Schema does not match! Expected {expected_schema}, got {actual_schema}"
 
 def test_schema(df):
     expected_schema = ['id', 'name', 'age', 'email', 'is_active']
