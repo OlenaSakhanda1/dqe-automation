@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/OlenaSakhanda1/dqe-automation.git'
+                git branch: 'main/PyTest DQ Framework', url: 'https://github.com/OlenaSakhanda1/dqe-automation.git'
             }
         }
 
@@ -63,3 +63,4 @@ pytest tests -m "parquet_data" \
         }
     }
 }
+
