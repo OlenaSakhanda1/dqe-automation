@@ -13,14 +13,14 @@ pg_password = os.getenv('POSTGRES_SECRET_PSW')
 parquet_path = os.path.join(os.getcwd(), 'parquet_output')
 os.makedirs(parquet_path, exist_ok=True)
 
-# ✅ Підключення до PostgreSQL
-conn = psycopg2.connect(
-    host=pg_host,
-    port=pg_port,
-    dbname=pg_name,
-    user=pg_user,
-    password=pg_password
-)
+def get_connection():
+    return psycopg2.connect(
+        host=pg_host,
+        port=pg_port,
+        dbname=pg_name,
+        user=pg_user,
+        password=pg_password
+    )
 
 # ✅ Список таблиць для конвертації
 tables = [
@@ -43,3 +43,4 @@ for table in tables:
 
 conn.close()
 print("✅ All tables have been converted to Parquet.")
+
