@@ -68,3 +68,4 @@ def target_data(parquet_reader):
         data = parquet_reader.process(target_path, include_subfolders=True)
         return data
     except Exception as e:
+        pytest.fail(f"Failed to load target parquet data: {e}")
