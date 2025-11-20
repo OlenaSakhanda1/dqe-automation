@@ -23,38 +23,43 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                python3 -m venv venv
-                source venv/bin/activate
-                pip install -r requirements.txt
-                '''
+#!/bin/bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+'''
             }
         }
 
         stage('Generate Parquet Files') {
             steps {
-                sh '''
-                source venv/bin/activate
-                export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
-                export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
-                python3 generate_parquet.py
-                echo "✅ Parquet generation completed. Listing files:"
-                ls -la parquet_output || echo "No parquet files found"
-                '''
+                withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
+                    sh '''
+#!/bin/bash
+source venv/bin/activate
+export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
+export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
+python3 generate_parquet.py
+echo "✅ Parquet generation completed. Listing files:"
+ls -la parquet_output || echo "No parquet files found"
+'''
+                }
             }
         }
 
         stage('Run Pytest') {
             steps {
                 sh '''
-                source venv/bin/activate
-                pytest tests -m "parquet_data" \
-                    --db_host="postgres" \
-                    --db_port="5432" \
-                    --db_name="mydatabase" \
-                    --db_user=$POSTGRES_SECRET_USR \
-                    --db_password=$POSTGRES_SECRET_PSW \
-                    --html=html_report/report.html
-                '''
+#!/bin/bash
+source venv/bin/activate
+pytest tests -m "parquet_data" \
+    --db_host="postgres" \
+    --db_port="5432" \
+    --db_name="mydatabase" \
+    --db_user=$POSTGRES_SECRET_USR \
+    --db_password=$POSTGRES_SECRET_PSW \
+    --html=html_report/report.html
+'''
             }
         }
 
