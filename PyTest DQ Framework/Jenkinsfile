@@ -1,29 +1,16 @@
 pipeline {
     agent any
 
-    environment {
-        POSTGRES_SECRET = credentials('jenkins-postgres-credentials')
-    }
-
     stages {
-        stage('DEBUG') {
-            steps {
-                echo "DEBUG: Jenkinsfile loaded"
-                sh 'pwd && ls -la'
-            }
-        }
-
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/OlenaSakhanda1/dqe-automation.git'
-                sh 'echo "✅ Checkout completed" && ls -la'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-#!/bin/bash
+                sh '''#!/bin/bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -34,8 +21,7 @@ pip install -r requirements.txt
         stage('Generate Parquet Files') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
-                    sh '''
-#!/bin/bash
+                    sh '''#!/bin/bash
 source venv/bin/activate
 export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
 export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
@@ -49,8 +35,7 @@ ls -la parquet_output || echo "No parquet files found"
 
         stage('Run Pytest') {
             steps {
-                sh '''
-#!/bin/bash
+                sh '''#!/bin/bash
 source venv/bin/activate
 pytest tests -m "parquet_data" \
     --db_host="postgres" \
@@ -77,4 +62,3 @@ pytest tests -m "parquet_data" \
             }
         }
     }
-}
