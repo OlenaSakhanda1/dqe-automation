@@ -3,3 +3,4 @@ pandas
 pyarrow
 psycopg2
 PyYAML
+pytest-html
