@@ -16,10 +16,10 @@ def df(file_path):
 
 # Fixture to validate the schema of the file
 @pytest.fixture(scope="session")
-def validate_schema(df):
-    def _validate(actual_schema, expected_schema):
-        return set(actual_schema) == set(expected_schema)
-    return _validate
+def test_validate_schema(df, validate_schema):
+    expected_schema = ['id', 'name', 'age', 'email', 'is_active']
+    actual_schema = df.columns.tolist()
+    assert validate_schema(actual_schema, expected_schema), f"Schema does not match! Expected {expected_schema}, got {actual_schema}"
 
 # Pytest hook to mark unmarked tests with a custom mark
 def pytest_collection_modifyitems(items):
