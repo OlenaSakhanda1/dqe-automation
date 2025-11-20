@@ -27,7 +27,6 @@ def db_credentials(request):
         "password": password
     }
 
-
 @pytest.fixture(scope="session")
 def data_quality_library():
     try:
@@ -61,3 +60,11 @@ def db_connection(db_credentials):
             yield connector
     except Exception as e:
         pytest.fail(f"Failed to initialize DB connection: {e}")
+
+@pytest.fixture(scope="module")
+def target_data(parquet_reader):
+    target_path = os.path.join(os.getcwd(), "parquet_output")
+    try:
+        data = parquet_reader.process(target_path, include_subfolders=True)
+        return data
+    except Exception as e:
