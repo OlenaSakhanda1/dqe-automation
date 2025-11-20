@@ -26,8 +26,9 @@ class DataQualityLibrary:
         df1 = df2
 
     @staticmethod
-    def check_dataset_is_not_empty(df):
-        df.is_not_empty
+    def check_dataset_is_not_empty(self, df):
+        assert not df.empty, "❌ Dataset is empty!"
+        print(f"✅ Dataset contains {len(df)} rows.")
 
     @staticmethod
     def check_not_null_values(df, column_names=None):
