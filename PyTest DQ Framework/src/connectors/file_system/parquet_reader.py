@@ -49,6 +49,7 @@ def generate_parquet():
     conn.close()
     print("✅ All tables have been converted to Parquet.")
 
+
 class ParquetReader:
     def __init__(self, parquet_path=None):
         self.parquet_path = parquet_path or os.path.join(os.getcwd(), 'parquet_output')
@@ -59,5 +60,20 @@ class ParquetReader:
             raise FileNotFoundError(f"Parquet file for {table_name} not found at {file_path}")
         return pd.read_parquet(file_path)
 
+    def process(self, include_subfolders=False):
+        all_data = []
+        for root, _, files in os.walk(self.parquet_path):
+            for file in files:
+                if file.endswith(".parquet"):
+                    file_path = os.path.join(root, file)
+                    df = pd.read_parquet(file_path)
+                    all_data.append(df)
+            if not include_subfolders:
+                break
+        if not all_data:
+            raise FileNotFoundError(f"No parquet files found in {self.parquet_path}")
+        return pd.concat(all_data, ignore_index=True)
+
 if __name__ == "__main__":
     generate_parquet()
+
