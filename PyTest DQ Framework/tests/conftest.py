@@ -1,11 +1,5 @@
 import pytest
-from src.connectors.postgres.postgres_connector import PostgresConnectorContextManager
-from src.data_quality.data_quality_validation_library import DataQualityLibrary
-from src.connectors.file_system.parquet_reader import ParquetReader
 import os
-
-db_user = os.getenv("POSTGRES_SECRET_USR")
-db_password = os.getenv("POSTGRES_SECRET_PSW")
 
 def pytest_addoption(parser):
     parser.addoption("--db_host", action="store", default="localhost")
@@ -14,24 +8,18 @@ def pytest_addoption(parser):
     parser.addoption("--db_user", action="store")
     parser.addoption("--db_password", action="store")
 
-def pytest_configure(config):
-    if not os.getenv("POSTGRES_SECRET_USR") or not os.getenv("POSTGRES_SECRET_PSW"):
-        pytest.fail("Database credentials are missing in environment variables")
+@pytest.fixture(scope="session")
+def db_credentials(request):
+    user = request.config.getoption("--db_user") or os.getenv("POSTGRES_SECRET_USR")
+    password = request.config.getoption("--db_password") or os.getenv("POSTGRES_SECRET_PSW")
 
-    required_options = [
-        "--db_user", "--db_password"
-    ]
-    for option in required_options:
-        if not config.getoption(option):
-            pytest.fail(f"Missing required option: {option}")
+    if not user or not password:
+        pytest.skip("Database credentials are missing. Skipping DB tests.")
 
-@pytest.fixture(scope='session')
-def db_connection(request):
-    ...
-    try:
-        with PostgresConnectorContextManager(...) as db_connector:
-            yield db_connector
-    except Exception as e:
-        pytest.fail(f"Failed to initialize PostgresConnectorContextManager: {e}")
-
-...
+    return {
+        "host": request.config.getoption("--db_host"),
+        "port": request.config.getoption("--db_port"),
+        "dbname": request.config.getoption("--db_name"),
+        "user": user,
+        "password": password
+    }
