@@ -24,7 +24,7 @@ source venv/bin/activate
 
 # Install dependencies
 pip install --upgrade pip
-pip install -r "./PyTest DQ Framework/requirements.txt"
+pip install -r "requirements.txt"
 '''
             }
         }
