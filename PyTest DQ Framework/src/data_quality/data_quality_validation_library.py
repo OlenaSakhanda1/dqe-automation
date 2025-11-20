@@ -10,26 +10,29 @@ class DataQualityLibrary:
     check and uses assertions to ensure that the data meets the expected conditions.
     """
 
-    @staticmethod
-    def check_duplicates(self, df, column_names=None):
-        if column_names:
-            df.duplicates(column_names)
-        else:
-            df.duplicates(all_columns)
-
-    @staticmethod
-    def check_count(self, df1, df2):
-        df1.count = df2.count
-
-    @staticmethod
-    def check_data_full_data_set(self, df1, df2):
-        df1 = df2
-
-    @staticmethod
-    def check_dataset_is_not_empty(self, df):
+   def check_dataset_is_not_empty(self, df: pd.DataFrame):
         assert not df.empty, "❌ Dataset is empty!"
         print(f"✅ Dataset contains {len(df)} rows.")
 
-    @staticmethod
-    def check_not_null_values(self, df, column_names=None):
-        [col for col in df.column_names]
+    def check_duplicates(self, df: pd.DataFrame):
+        duplicates = df.duplicated().sum()
+        assert duplicates == 0, f"❌ Found {duplicates} duplicate rows!"
+        print("✅ No duplicate rows found.")
+
+    def check_not_null_values(self, df: pd.DataFrame, columns: list):
+        for col in columns:
+            null_count = df[col].isnull().sum()
+            assert null_count == 0, f"❌ Column '{col}' contains {null_count} NULL values!"
+        print(f"✅ Columns {columns} have no NULL values.")
+
+    def check_count(self, source_df: pd.DataFrame, target_df: pd.DataFrame):
+        assert len(source_df) == len(target_df), (
+            f"❌ Row count mismatch: source={len(source_df)}, target={len(target_df)}"
+        )
+        print("✅ Row counts match between source and target datasets.")
+
+    def check_data_completeness(self, source_df: pd.DataFrame, target_df: pd.DataFrame, key_columns: list):
+        missing = set(source_df[key_columns].dropna().apply(tuple, axis=1)) - \
+                  set(target_df[key_columns].dropna().apply(tuple, axis=1))
+        assert not missing, f"❌ Missing {len(missing)} key records in target dataset!"
+        print("✅ All key records from source exist in target dataset.")
