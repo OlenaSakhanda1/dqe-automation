@@ -1,5 +1,8 @@
 import pytest
 import os
+from src.connectors.postgres.postgres_connector import PostgresConnectorContextManager
+from src.connectors.file_system.parquet_reader import ParquetReader
+from src.data_quality.data_quality_validation_library import DataQualityLibrary
 
 def pytest_addoption(parser):
     parser.addoption("--db_host", action="store", default="localhost")
@@ -23,3 +26,38 @@ def db_credentials(request):
         "user": user,
         "password": password
     }
+
+
+@pytest.fixture(scope="session")
+def data_quality_library():
+    try:
+        dq_lib = DataQualityLibrary()
+        yield dq_lib
+    except Exception as e:
+        pytest.fail(f"Failed to initialize DataQualityLibrary: {e}")
+    finally:
+        del dq_lib
+
+@pytest.fixture(scope="session")
+def parquet_reader():
+    try:
+        reader = ParquetReader()
+        yield reader
+    except Exception as e:
+        pytest.fail(f"Failed to initialize ParquetReader: {e}")
+    finally:
+        del reader
+
+@pytest.fixture(scope="session")
+def db_connection(db_credentials):
+    try:
+        with PostgresConnectorContextManager(
+            db_user=db_credentials["user"],
+            db_password=db_credentials["password"],
+            db_host=db_credentials["host"],
+            db_name=db_credentials["dbname"],
+            db_port=db_credentials["port"]
+        ) as connector:
+            yield connector
+    except Exception as e:
+        pytest.fail(f"Failed to initialize DB connection: {e}")
