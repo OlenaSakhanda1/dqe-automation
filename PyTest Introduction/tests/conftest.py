@@ -1,14 +1,18 @@
 import pytest
 import pandas as pd
 
-# Fixture to read the CSV file
+
+# Fixture to provide absolute path to the CSV file
 @pytest.fixture(scope="session")
 def file_path():
-    return "src/data/data.csv"
+    # Get the project root (two levels up from this file)
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    return os.path.join(base_dir, "src", "data", "data.csv")
 
+# Fixture to read the CSV file
 @pytest.fixture(scope="session")
-def df():
-    return pd.read_csv("src/data/data.csv")
+def df(file_path):
+    return pd.read_csv(file_path)
 
 # Fixture to validate the schema of the file
 @pytest.fixture(scope="session")
