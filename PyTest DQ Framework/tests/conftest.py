@@ -63,9 +63,8 @@ def db_connection(db_credentials):
 
 @pytest.fixture(scope="module")
 def target_data(parquet_reader):
-    target_path = os.path.join(os.getcwd(), "parquet_output")
     try:
-        data = parquet_reader.process(target_path, include_subfolders=True)
+        data = parquet_reader.process(include_subfolders=True)
         return data
     except Exception as e:
         pytest.fail(f"Failed to load target parquet data: {e}")
