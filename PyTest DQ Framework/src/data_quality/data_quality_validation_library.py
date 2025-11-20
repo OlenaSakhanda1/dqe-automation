@@ -11,18 +11,18 @@ class DataQualityLibrary:
     """
 
     @staticmethod
-    def check_duplicates(df, column_names=None):
+    def check_duplicates(self, df, column_names=None):
         if column_names:
             df.duplicates(column_names)
         else:
             df.duplicates(all_columns)
 
     @staticmethod
-    def check_count(df1, df2):
+    def check_count(self, df1, df2):
         df1.count = df2.count
 
     @staticmethod
-    def check_data_full_data_set(df1, df2):
+    def check_data_full_data_set(self, df1, df2):
         df1 = df2
 
     @staticmethod
@@ -31,5 +31,5 @@ class DataQualityLibrary:
         print(f"✅ Dataset contains {len(df)} rows.")
 
     @staticmethod
-    def check_not_null_values(df, column_names=None):
+    def check_not_null_values(self, df, column_names=None):
         [col for col in df.column_names]
