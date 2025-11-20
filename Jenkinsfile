@@ -1,63 +1,65 @@
 pipeline {
     agent any
+
     stages {
-        stage('Update Packages') {
+        stage('Checkout') {
             steps {
-                script {
-                    // Update the package list
-                    sh 'apt-get update'
-                    sh 'apt-get install -y libpq-dev'
-                }
+                git branch: 'main', url: 'https://github.com/OlenaSakhanda1/dqe-automation.git'
             }
         }
-        stage('Install Python') {
-            steps {
-                // Install Python and pip
-                sh 'apt-get install -y python3 python3-pip python3-venv'
-            }
-        }
-        stage('Clone Repository') {
-            steps {
-                script {
-                    // Clone the Git repository
-                    git branch: 'main', url: 'https://github.com/DanyaHDanny/dqe-automation'
-                }
-            }
-        }
+
         stage('Install Dependencies') {
             steps {
-                script {
-                    // Create a virtual environment
-                    sh '''
-                        python3 -m venv venv
-                        . venv/bin/activate
-                        pip install -r data_dev/requirements.txt
-                    '''
-                }
+                sh '''#!/bin/bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r "PyTest DQ Framework/requirements.txt"
+'''
             }
         }
-        stage('Run main') {
+
+        stage('Generate Parquet Files') {
             steps {
-                script {
-                    // Activate the virtual environment, set PYTHONPATH, and run the script
-                    sh '''
-                        . venv/bin/activate
-                        export PYTHONPATH=$WORKSPACE
-                        python data_dev/main.py
-                    '''
+                withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
+                    sh '''#!/bin/bash
+source venv/bin/activate
+export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
+export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
+python3 "PyTest DQ Framework/generate_parquet.py"
+echo "✅ Parquet generation completed. Listing files:"
+ls -la parquet_output || echo "No parquet files found"
+'''
                 }
             }
         }
-    }
-    post {
-        always {
-            echo 'Pipeline execution completed.'
+
+        stage('Run Pytest') {
+            steps {
+                sh '''#!/bin/bash
+source venv/bin/activate
+pytest "PyTest DQ Framework/tests" -m "parquet_data" \
+    --db_host="postgres" \
+    --db_port="5432" \
+    --db_name="mydatabase" \
+    --db_user=$POSTGRES_SECRET_USR \
+    --db_password=$POSTGRES_SECRET_PSW \
+    --html=html_report/report.html
+'''
+            }
         }
-        success {
-            echo 'Pipeline executed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Please check the logs for details.'
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'html_report/**', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'parquet_output/**/*.parquet', allowEmptyArchive: true
+                publishHTML(target: [
+                    allowMissing: false,
+                    keepAll: true,
+                    reportDir: 'html_report',
+                    reportFiles: 'report.html',
+                    reportName: 'HTML Test Report'
+                ])
+            }
         }
     }
 }
