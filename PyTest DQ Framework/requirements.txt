@@ -2,3 +2,6 @@ pytest
 pandas
 pyarrow
 psycopg2
+PyYAML
+YAML
+
