@@ -28,7 +28,3 @@ PyTest Introduction/
    pip install -r requirements.txt
 3. **Running Tests**:
    pytest
-   If you want to generate an HTML report (optional), install pytest-html and run:
-   pytest --html=report.html --self-contained-html
-
-   
