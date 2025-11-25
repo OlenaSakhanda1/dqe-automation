@@ -51,8 +51,7 @@ def generate_parquet():
 
 
 class ParquetReader:
-    def __
-init__(self, parquet_path=None):
+    def __init__(self, parquet_path=None):
         self.parquet_path = parquet_path or os.path.join(os.getcwd(), 'parquet_output')
 
     def read_table(self, table_name):
@@ -85,3 +84,4 @@ init__(self, parquet_path=None):
 
 if __name__ == "__main__":
     generate_parquet()
+
