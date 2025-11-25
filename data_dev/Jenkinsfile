@@ -48,6 +48,22 @@ pipeline {
                 }
             }
         }
+        stage('Prepare Shared Parquet Folder') {
+            steps {
+                // Create shared parquet folder if it doesn't exist
+                sh 'mkdir -p /var/jenkins_home/shared_parquet'
+            }
+        }
+        stage('Copy Parquet Files to Shared Folder') {
+            steps {
+                // Copy all parquet files to the shared folder
+                sh '''
+                    cp data_dev/parquet_output/*.parquet /var/jenkins_home/shared_parquet/
+                    echo "✅ Parquet files copied to shared folder:"
+                    ls -la /var/jenkins_home/shared_parquet || echo "No parquet files found"
+                '''
+            }
+        }
     }
     post {
         always {
@@ -61,5 +77,3 @@ pipeline {
         }
     }
 }
-
-
