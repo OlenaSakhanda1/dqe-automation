@@ -51,20 +51,22 @@ def generate_parquet():
 
 
 class ParquetReader:
-    def __init__(self, parquet_path=None):
+    def __
+init__(self, parquet_path=None):
         self.parquet_path = parquet_path or os.path.join(os.getcwd(), 'parquet_output')
 
     def read_table(self, table_name):
-        # Try to read as file first
-        file_path = os.path.join(self.parquet_path, f"{table_name}.parquet")
         folder_path = os.path.join(self.parquet_path, table_name)
-        if os.path.exists(file_path):
-            return pd.read_parquet(file_path)
-        elif os.path.exists(folder_path):
+        file_path = os.path.join(self.parquet_path, f"{table_name}.parquet")
+        if os.path.exists(folder_path):
+            print(f"Reading parquet partitioned folder: {folder_path}")
             return pd.read_parquet(folder_path)
+        elif os.path.exists(file_path):
+            print(f"Reading parquet file: {file_path}")
+            return pd.read_parquet(file_path)
         else:
             raise FileNotFoundError(
-                f"Parquet file or folder for {table_name} not found at {file_path} or {folder_path}"
+                f"Parquet folder or file for {table_name} not found at {folder_path} or {file_path}"
             )
 
     def process(self, include_subfolders=False):
