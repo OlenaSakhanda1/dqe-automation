@@ -55,10 +55,17 @@ class ParquetReader:
         self.parquet_path = parquet_path or os.path.join(os.getcwd(), 'parquet_output')
 
     def read_table(self, table_name):
+        # Try to read as file first
         file_path = os.path.join(self.parquet_path, f"{table_name}.parquet")
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Parquet file for {table_name} not found at {file_path}")
-        return pd.read_parquet(file_path)
+        folder_path = os.path.join(self.parquet_path, table_name)
+        if os.path.exists(file_path):
+            return pd.read_parquet(file_path)
+        elif os.path.exists(folder_path):
+            return pd.read_parquet(folder_path)
+        else:
+            raise FileNotFoundError(
+                f"Parquet file or folder for {table_name} not found at {file_path} or {folder_path}"
+            )
 
     def process(self, include_subfolders=False):
         all_data = []
@@ -76,4 +83,3 @@ class ParquetReader:
 
 if __name__ == "__main__":
     generate_parquet()
-
