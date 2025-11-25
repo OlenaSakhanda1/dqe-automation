@@ -21,22 +21,23 @@ pip install PyYAML pytest-html
             }
         }
 
-        stage('Generate Parquet Files') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
-                    sh '''#!/bin/bash
-set -e
-source venv/bin/activate
-mkdir -p parquet_output
-export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
-export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
-python3 PyTest\\ DQ\\ Framework/src/connectors/file_system/parquet_reader.py
-echo "✅ Parquet generation completed. Listing files:"
-ls -la parquet_output || echo "No parquet files found"
-'''
-                }
-            }
-        }
+        // --- Parquet generation stage is removed/commented ---
+        // stage('Generate Parquet Files') {
+        //     steps {
+        //         withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
+        //             sh '''#!/bin/bash
+        // set -e
+        // source venv/bin/activate
+        // mkdir -p parquet_output
+        // export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
+        // export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
+        // python3 PyTest\\ DQ\\ Framework/src/connectors/file_system/parquet_reader.py
+        // echo "✅ Parquet generation completed. Listing files:"
+        // ls -la parquet_output || echo "No parquet files found"
+        // '''
+        //         }
+        //     }
+        // }
 
         stage('Run Pytest') {
             steps {
@@ -47,6 +48,10 @@ source venv/bin/activate
 mkdir -p html_report
 export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
 export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
+
+# List parquet files for debug
+echo "📂 parquet_output content:"
+ls -la parquet_output || echo "No parquet files found"
 
 # Run tests with detailed HTML report
 pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
