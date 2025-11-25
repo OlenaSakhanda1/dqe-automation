@@ -21,23 +21,24 @@ pip install PyYAML pytest-html
             }
         }
 
-        // --- Parquet generation stage is removed/commented ---
-        // stage('Generate Parquet Files') {
-        //     steps {
-        //         withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
-        //             sh '''#!/bin/bash
-        // set -e
-        // source venv/bin/activate
-        // mkdir -p parquet_output
-        // export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
-        // export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
-        // python3 PyTest\\ DQ\\ Framework/src/connectors/file_system/parquet_reader.py
-        // echo "✅ Parquet generation completed. Listing files:"
-        // ls -la parquet_output || echo "No parquet files found"
-        // '''
-        //         }
-        //     }
-        // }
+        stage('Generate Parquet Files') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
+                    sh '''#!/bin/bash
+set -e
+source venv/bin/activate
+mkdir -p parquet_output
+export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
+export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
+
+python3 PyTest\\ DQ\\ Framework/src/connectors/file_system/parquet_reader.py
+
+echo "✅ Parquet generation completed. Listing files:"
+ls -la parquet_output || echo "No parquet files found"
+'''
+                }
+            }
+        }
 
         stage('Run Pytest') {
             steps {
