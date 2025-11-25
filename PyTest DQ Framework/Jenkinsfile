@@ -21,22 +21,15 @@ pip install PyYAML pytest-html
             }
         }
 
-        stage('Generate Parquet Files') {
+        stage('Copy Parquet Data from Shared Folder') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins-postgres-credentials', usernameVariable: 'POSTGRES_SECRET_USR', passwordVariable: 'POSTGRES_SECRET_PSW')]) {
-                    sh '''#!/bin/bash
+                sh '''#!/bin/bash
 set -e
-source venv/bin/activate
-mkdir -p parquet_output
-export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
-export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
-
-python3 PyTest\\ DQ\\ Framework/src/connectors/file_system/parquet_reader.py
-
-echo "✅ Parquet generation completed. Listing files:"
-ls -la parquet_output || echo "No parquet files found"
+mkdir -p PyTest\\ DQ\\ Framework/parquet_output
+cp -r /var/jenkins_home/shared_parquet/* PyTest\\ DQ\\ Framework/parquet_output/
+echo "✅ Parquet data copied from shared folder:"
+ls -la PyTest\\ DQ\\ Framework/parquet_output || echo "No parquet data found"
 '''
-                }
             }
         }
 
@@ -52,7 +45,7 @@ export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
 
 # List parquet files for debug
 echo "📂 parquet_output content:"
-ls -la parquet_output || echo "No parquet files found"
+ls -la PyTest\\ DQ\\ Framework/parquet_output || echo "No parquet data found"
 
 # Run tests with detailed HTML report
 pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
@@ -72,7 +65,7 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
         stage('Archive Artifacts') {
             steps {
                 archiveArtifacts artifacts: 'html_report/**', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'parquet_output/**/*.parquet', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'PyTest DQ Framework/parquet_output/**', allowEmptyArchive: true
                 publishHTML(target: [
                     allowMissing: false,
                     keepAll: true,
