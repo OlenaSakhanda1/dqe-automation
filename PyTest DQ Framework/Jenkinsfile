@@ -46,7 +46,7 @@ export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
 # List parquet files for debug
 echo "📂 parquet_output content:"
 ls -la PyTest\\ DQ\\ Framework/parquet_output || echo "No parquet data found"
-sh 'find PyTest\\ DQ\\ Framework/parquet_output'
+sh 'find "PyTest DQ Framework/parquet_output"'
 # Run tests with detailed HTML report
 pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
     --db_host="postgres" \
@@ -77,4 +77,5 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
         }
     }
 }
+
 
