@@ -33,8 +33,7 @@ def test_row_count_matches_source(parquet_reader, db_connection, data_quality_li
 def test_data_completeness(parquet_reader, db_connection, data_quality_library):
     """Check that all key records from the source are present in the target dataset."""
     df = parquet_reader.read_table(TABLE_NAME)
-    source_df = db_connection.get
-_data_sql(f"SELECT * FROM {TABLE_NAME};")
+    source_df = db_connection.get_data_sql(f"SELECT * FROM {TABLE_NAME};")
     key_columns = [col for col in df.columns if "id" in col]
     if key_columns:
         data_quality_library.check_data_completeness(source_df, df, key_columns)
