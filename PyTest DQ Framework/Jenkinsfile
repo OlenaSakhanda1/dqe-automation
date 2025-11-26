@@ -29,8 +29,7 @@ ls -la "PyTest DQ Framework/src/connectors/file_system/parquet_output" || echo "
 cd "PyTest DQ Framework/src/connectors/file_system/parquet_output"
 find .
 '''
-           
- }
+            }
         }
 
         stage('Run Pytest') {
@@ -43,7 +42,6 @@ mkdir -p html_report
 export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
 export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
 
-# Run tests with detailed HTML report
 pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
     --db_host="postgres" \
     --db_port="5432" \
@@ -61,7 +59,8 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
         stage('Archive Artifacts') {
             steps {
                 archiveArtifacts artifacts: 'html_report/**', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'PyTest DQ Framework/src/connectors/file_system/parquet_output/**', allowEmptyArchive: true
+                archiveArtifacts artifacts:
+ 'PyTest DQ Framework/src/connectors/file_system/parquet_output/**', allowEmptyArchive: true
                 publishHTML(target: [
                     allowMissing: false,
                     keepAll: true,
