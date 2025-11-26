@@ -21,16 +21,16 @@ pip install PyYAML pytest-html
             }
         }
 
-        stage('Copy Parquet Data from Shared Folder') {
+        stage('List Parquet Data in Repo Folder') {
             steps {
-                sh '''#!/bin/bash
-set -e
-mkdir -p PyTest\\ DQ\\ Framework/parquet_output
-cp -r /var/jenkins_home/shared_parquet/* PyTest\\ DQ\\ Framework/parquet_output/
-echo "✅ Parquet data copied from shared folder:"
-ls -la PyTest\\ DQ\\ Framework/parquet_output || echo "No parquet data found"
+                sh '''
+echo "📂 parquet_output content:"
+ls -la "PyTest DQ Framework/src/connectors/file_system/parquet_output" || echo "No parquet data found"
+cd "PyTest DQ Framework/src/connectors/file_system/parquet_output"
+find .
 '''
-            }
+           
+ }
         }
 
         stage('Run Pytest') {
@@ -43,13 +43,6 @@ mkdir -p html_report
 export POSTGRES_SECRET_USR=$POSTGRES_SECRET_USR
 export POSTGRES_SECRET_PSW=$POSTGRES_SECRET_PSW
 
-# List parquet files for debug
-echo "📂 parquet_output content:"
-ls -la PyTest\\ DQ\\ Framework/parquet_output || echo "No parquet data found"
-sh '''
-cd "PyTest DQ Framework/parquet_output"
-find .
-'''
 # Run tests with detailed HTML report
 pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
     --db_host="postgres" \
@@ -68,7 +61,7 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
         stage('Archive Artifacts') {
             steps {
                 archiveArtifacts artifacts: 'html_report/**', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'PyTest DQ Framework/parquet_output/**', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'PyTest DQ Framework/src/connectors/file_system/parquet_output/**', allowEmptyArchive: true
                 publishHTML(target: [
                     allowMissing: false,
                     keepAll: true,
@@ -80,6 +73,3 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
         }
     }
 }
-
-
-
