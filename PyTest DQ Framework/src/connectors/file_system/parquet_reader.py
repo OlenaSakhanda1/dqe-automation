@@ -17,14 +17,23 @@ if not pg_user or not pg_password:
         pg_user = config['postgres']['user']
         pg_password = config['postgres']['password']
 
-parquet_path = os.path.join(os.getcwd(), 'parquet_output')
-os.makedirs(parquet_path, exist_ok=True)
+# ОНОВЛЕНО: шлях до parquet_output у репозиторії
+default_parquet_path = os.path.join(
+    os.getcwd(),
+    'PyTest DQ Framework',
+    'src',
+    'connectors',
+    'file_system',
+    'parquet_output'
+)
+os.makedirs(default_parquet_path, exist_ok=True)
 
 def generate_parquet():
     conn = psycopg2.connect(
         host=pg_host,
         port=pg_port,
         dbname=pg_name,
+
         user=pg_user,
         password=pg_password
     )
@@ -42,7 +51,7 @@ def generate_parquet():
         query = f"SELECT * FROM {table};"
         print(f"Processing table: {table}")
         df = pd.read_sql(query, conn)
-        file_path = os.path.join(parquet_path, f"{table}.parquet")
+        file_path = os.path.join(default_parquet_path, f"{table}.parquet")
         df.to_parquet(file_path)
         print(f"✅ Saved {table} to {file_path}")
 
@@ -52,7 +61,8 @@ def generate_parquet():
 
 class ParquetReader:
     def __init__(self, parquet_path=None):
-        self.parquet_path = parquet_path or os.path.join(os.getcwd(), 'parquet_output')
+        # ОНОВЛЕНО: за замовчуванням використовуємо потрібний шлях
+        self.parquet_path = parquet_path or default_parquet_path
 
     def read_table(self, table_name):
         folder_path = os.path.join(self.parquet_path, table_name)
@@ -84,4 +94,3 @@ class ParquetReader:
 
 if __name__ == "__main__":
     generate_parquet()
-
