@@ -6,8 +6,7 @@ Author(s): Olena Sakhanda
 
 import pytest
 
-TABLE_NAME = "facility_name_min_time_spent
-_per_visit_date"
+TABLE_NAME = "facility_name_min_time_spent_per_visit_date"
 
 @pytest.mark.parquet_data
 def test_dataset_is_not_empty(parquet_reader, data_quality_library):
@@ -41,7 +40,6 @@ def test_data_completeness(parquet_reader, db_connection, data_quality_library):
     """Check that all key records from the source are present in the target dataset."""
     df = parquet_reader.read_table(TABLE_NAME)
     source_df = db_connection.get_data_sql(f"SELECT * FROM {TABLE_NAME};")
-    key_columns = [col for col in df.columns
- if "id" in col]
+    key_columns = [col for col in df.columns if "id" in col]
     if key_columns:
         data_quality_library.check_data_completeness(source_df, df, key_columns)
