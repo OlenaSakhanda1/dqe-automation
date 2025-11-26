@@ -6,42 +6,42 @@ Author(s): Olena Sakhanda
 
 import pytest
 
-TABLE_NAME = "facility_name_min_time_spent_per_visit_date"
+TABLE_NAME = "facility_name_min_time_spent
+_per_visit_date"
 
 @pytest.mark.parquet_data
-def test_dataset_is_not_empty(parquet_reader):
+def test_dataset_is_not_empty(parquet_reader, data_quality_library):
     """Check that the dataset is not empty."""
     df = parquet_reader.read_table(TABLE_NAME)
-    assert not df.empty, "Dataset is empty"
+    data_quality_library.check_dataset_is_not_empty(df)
 
 @pytest.mark.parquet_data
-def test_no_duplicates(parquet_reader):
+def test_no_duplicates(parquet_reader, data_quality_library):
     """Check that there are no duplicate rows."""
     df = parquet_reader.read_table(TABLE_NAME)
-    assert df.duplicated().sum() == 0, "Dataset contains duplicate rows"
+    data_quality_library.check_duplicates(df)
 
 @pytest.mark.parquet_data
-def test_key_columns_not_null(parquet_reader):
+def test_key_columns_not_null(parquet_reader, data_quality_library):
     """Check that key columns do not contain NULL values."""
     df = parquet_reader.read_table(TABLE_NAME)
     key_columns = [col for col in df.columns if "id" in col]
-    for col in key_columns:
-        assert df[col].isnull().sum() == 0, f"Key column '{col}' contains NULL values"
+    if key_columns:
+        data_quality_library.check_not_null_values(df, key_columns)
 
 @pytest.mark.parquet_data
-def test_row_count_matches_source(parquet_reader, db_connection):
+def test_row_count_matches_source(parquet_reader, db_connection, data_quality_library):
     """Check that the row count matches the source table."""
     df = parquet_reader.read_table(TABLE_NAME)
     source_df = db_connection.get_data_sql(f"SELECT * FROM {TABLE_NAME};")
-    assert len(df) == len(source_df), "Row count does not match source table"
+    data_quality_library.check_count(source_df, df)
 
 @pytest.mark.parquet_data
-def test_data_completeness(parquet_reader, db_connection):
+def test_data_completeness(parquet_reader, db_connection, data_quality_library):
     """Check that all key records from the source are present in the target dataset."""
     df = parquet_reader.read_table(TABLE_NAME)
     source_df = db_connection.get_data_sql(f"SELECT * FROM {TABLE_NAME};")
-    key_columns = [col for col in df.columns if "id" in col]
+    key_columns = [col for col in df.columns
+ if "id" in col]
     if key_columns:
-        merged = source_df.merge(df, on=key_columns, how='left', indicator=True)
-        missing = merged[merged['_merge'] == 'left_only']
-        assert missing.empty, f"Missing key records: {missing[key_columns].to_dict(orient='records')}"
+        data_quality_library.check_data_completeness(source_df, df, key_columns)
