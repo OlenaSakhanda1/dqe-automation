@@ -28,6 +28,7 @@ pipeline {
                         python3 -m venv venv
                         . venv/bin/activate
                         pip install -r data_dev/requirements.txt
+
                     '''
                 }
             }
@@ -48,23 +49,19 @@ pipeline {
                 sh 'ls -la /parquet_data || echo "No parquet data found"'
             }
         }
-        stage('Prepare Shared Parquet Folder') {
-            steps {
-                sh 'mkdir -p /var/jenkins_home/shared_parquet'
-            }
-        }
-        stage('Copy Parquet Data to Shared Folder') {
+        stage('Copy Parquet Data to Workspace') {
             steps {
                 sh '''
-                    cp -r /parquet_data/* /var/jenkins_home/shared_parquet/
-                    echo "✅ Parquet data copied to shared folder:"
-                    ls -la /var/jenkins_home/shared_parquet || echo "No parquet data found"
+                    mkdir -p parquet_output
+                    cp -r /parquet_data/* parquet_output/
+                    echo "✅ Parquet data copied to workspace:"
+                    ls -la parquet_output || echo "No parquet data found"
                 '''
             }
         }
         stage('Archive Parquet Artifacts') {
             steps {
-                archiveArtifacts artifacts: '/var/jenkins_home/shared_parquet/**', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'parquet_output/**', allowEmptyArchive: true
             }
         }
     }
