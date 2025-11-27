@@ -65,10 +65,11 @@ pytest PyTest\\ DQ\\ Framework/tests -m "parquet_data" \
                     allowMissing: false,
                     keepAll: true,
                     reportDir: 'html_report',
-                    reportFiles: 'report.html',
+                    reportFiles: 'report1.html',
                     reportName: 'HTML Test Report'
                 ])
             }
         }
     }
 }
+
