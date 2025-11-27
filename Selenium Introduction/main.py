@@ -85,9 +85,6 @@ def save_as_csv(values: list, out_path: str) -> None:
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False)
 
-
-
-
 def extract_doughnut_data(driver):
     js_script = """
     var slices = document.querySelectorAll('.js-plotly-plot g.slice');
@@ -97,7 +94,6 @@ def extract_doughnut_data(driver):
         var textEl = slice.querySelector('g.slicetext text');
         if (textEl) {
             var rawText = textEl.textContent.trim();
-            // Використовуємо regex: все, що не цифри -> label, цифри -> value
             var match = rawText.match(/^([A-Za-z\\s]+)([0-9.,]+)$/);
             if (match) {
                 var label = match[1].trim();
@@ -114,7 +110,6 @@ def extract_doughnut_data(driver):
     """
     result = driver.execute_script(js_script)
     return (result['labels'], result['values']) if result else None
-
 
 def save_doughnut_csv(labels: List[str], values: List[float], out_path: str):
     """Save doughnut chart data to CSV."""
