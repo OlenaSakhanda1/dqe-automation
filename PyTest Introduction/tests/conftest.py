@@ -1,6 +1,18 @@
 import pytest, os
 import pandas as pd
+import logging
+import pytest
+from reportportal_client import RPLogger
+from dotenv import load_dotenv
 
+load_dotenv()
+
+@pytest.fixture(scope="session")
+def rp_logger():
+    logger = logging.getLogger("rp")
+    logger.setLevel(logging.INFO)
+    logging.setLoggerClass(RPLogger)
+    return logger
 
 # Fixture to provide absolute path to the CSV file
 @pytest.fixture(scope="session")

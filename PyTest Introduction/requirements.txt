@@ -1,3 +1,5 @@
 pytest
 pandas
 pytest-html
+dotenv
+pytest-reportportal
