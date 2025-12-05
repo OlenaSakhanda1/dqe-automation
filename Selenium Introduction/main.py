@@ -1,246 +1,220 @@
-
+import csv
 import os
 import time
-import re
-from typing import List, Dict, Any, Optional, Tuple
-
-import pandas as pd
+from typing import List, Tuple, Dict, Any
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.edge.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
-    StaleElementReferenceException,
-    WebDriverException,
-)
-from selenium.webdriver import ActionChains
 
-# ===================== 0) CONTEXT MANAGER =====================
-class SeleniumWebDriverContextManager:
-    def __init__(self, headless: bool = False):
-        self.driver = None
-        self.headless = headless
+GRAPH_ID = "f2be9861-78e2-4f00-aa5f-9778ee33830a"
 
-    def __enter__(self):
-        options = Options()
-        if self.headless:
-            options.add_argument("--headless=new")
-        self.driver = webdriver.Chrome(options=options)
-        return self.driver
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.driver:
-            try:
-                self.driver.quit()
-            except WebDriverException:
-                pass
-
-
-# ===================== 1) TABLE (SVG → CSV у 3 колонки, як у твоєму підході) =====================
-# 1) TABLE: SVG → 3 колонки → (опційно) CSV
-def extract_table(driver, save_csv_path=None):
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
-
+# ---------- Driver & Page ----------
+def init_driver(headless: bool = False) -> Tuple[webdriver.Edge, WebDriverWait]:
     try:
-        wait = WebDriverWait(driver, 10)
-        headers = {"Facility Type", "Visit Date", "Average Time Spent"}
+        opts = Options()
+        # if headless: opts.add_argument("--headless=new")
+        driver = webdriver.Edge(options=opts)
+        wait = WebDriverWait(driver, 20)
+        return driver, wait
+    except Exception as e:
+        raise RuntimeError(f"Driver initialization failed: {e}")
 
-        cells = []
-        # XPath (основний)
+def open_page(driver: webdriver.Edge, report_path: str) -> None:
+    try:
+        driver.get(os.path.abspath(report_path))
+    except Exception as e:
+        raise RuntimeError(f"Failed to open page '{report_path}': {e}")
+
+def locate_graph(wait: WebDriverWait):
+    try:
+        return wait.until(EC.presence_of_element_located((By.ID, GRAPH_ID)))
+    except Exception:
         try:
-            xp = (By.XPATH, "//*[local-name()='text' and contains(@class,'cell-text')]")
-            wait.until(EC.visibility_of_element_located(xp))
-            cells = driver.find_elements(*xp)
-        except TimeoutException:
-            pass
-        # CSS (fallback)
-        if not cells:
-            try:
-                wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "text.cell-text")))
-                cells = driver.find_elements(By.CSS_SELECTOR, "text.cell-text")
-            except TimeoutException:
-                pass
-        # ClassName (fallback)
-        if not cells:
-            try:
-                wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "cell-text")))
-                cells = driver.find_elements(By.CLASS_NAME, "cell-text")
-            except TimeoutException:
-                pass
+            return wait.until(EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div.plotly-graph-div.js-plotly-plot")
+            ))
+        except Exception as e:
+            raise RuntimeError(f"Plotly graph container not found: {e}")
 
-        values = [c.text.strip() for c in cells if c.text and c.text.strip()]
-        clean = [v for v in values if v not in headers]
-
-        rows = len(clean) // 3
-        if rows == 0:
-            df = pd.DataFrame(columns=["facility_type", "visit_date", "avg_time_spent"])
-        else:
-            df = pd.DataFrame({
-                "facility_type": clean[0:rows],
-                "visit_date":    clean[rows:rows*2],
-                "avg_time_spent":clean[rows*2:rows*3],
-            })
-
-        if save_csv_path:
-            os.makedirs(os.path.dirname(save_csv_path), exist_ok=True)
-            df.rename(columns={
-                "facility_type": "Facility Type",
-                "visit_date": "Visit Date",
-                "avg_time_spent": "Average Time Spent"
-            }).to_csv(save_csv_path, index=False)
-
-        return df
-
-    except (TimeoutException, NoSuchElementException, StaleElementReferenceException):
-        return pd.DataFrame(columns=["facility_type", "visit_date", "avg_time_spent"])
-
-
-# 2) DOUGHNUT: без скриптів; скріншоти + CSV per filter
-def extract_doughnut_chart(driver, screenshots_dir, csv_dir, timeout_update_sec=5.0):
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import TimeoutException, WebDriverException
-    from selenium.webdriver import ActionChains
-
-    datasets = []
+def get_svg(graph, wait: WebDriverWait):
     try:
-        wait = WebDriverWait(driver, 10)
-        chart = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.js-plotly-plot")))
-        os.makedirs(screenshots_dir, exist_ok=True)
-        os.makedirs(csv_dir, exist_ok=True)
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "svg.main-svg")))
+        return graph.find_element(By.CSS_SELECTOR, "svg.main-svg")
+    except Exception as e:
+        raise RuntimeError(f"SVG not found: {e}")
 
-        # Initial screenshot
-        idx = 0
-        shot = os.path.join(screenshots_dir, f"screenshot{idx}.png")
-        driver.save_screenshot(shot)
-
-        # Order of labels from legend (.scrollbox -> .traces)
-        labels = []
+def capture(target, fallback, filename: str) -> None:
+    try:
+        target.screenshot(filename)
+    except Exception:
         try:
-            box = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "scrollbox")))
-            for t in box.find_elements(By.CLASS_NAME, "traces"):
-                lab = ""
-                for xp in (".//span[contains(@class,'legendtext')]", ".//span", ".//*[local-name()='text']"):
-                    try:
-                        e = t.find_element(By.XPATH, xp)
-                        txt = (e.text or "").strip()
-                        if txt:
-                            lab = txt; break
-                    except Exception:
-                        pass
-                labels.append(lab)
-        except TimeoutException:
-            labels = []
+            fallback.screenshot(filename)
+        except Exception as e:
+            raise RuntimeError(f"Screenshot '{filename}' failed: {e}")
 
-        # Values from donut slices (g.slice -> g.slicetext text)
-        val_map = {}
-        for s in driver.find_elements(By.XPATH, "//*[name()='g' and contains(@class,'slice')]"):
-            nodes = s.find_elements(By.XPATH, ".//*[name()='g' and contains(@class,'slicetext')]//*[name()='text']")
-            raw = " ".join([(n.text or "").strip() for n in nodes if (n.text or "").strip()]).strip()
-            if not raw:
-                continue
-            m = re.findall(r"(\d+(?:[.,]\d+)?)", raw)
-            value = m[-1].replace(",", ".") if m else ""
-            label = raw[:-len(m[-1])].strip() if m else raw
-            if label:
-                val_map[label] = value
-
-        pairs = [{"label": lab, "value": val_map.get(lab, "")} for lab in labels]
-        datasets.append({"index": idx, "labels": labels, "values": [p["value"] for p in pairs], "screenshot": shot})
-        save_doughnut_data([datasets[-1]], csv_dir)
-
-        # Iterate legend filters
-        for item in chart.find_elements(By.CSS_SELECTOR, ".legendtoggle"):
-            prev_values = datasets[-1]["values"]
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable(item))
-            try:
-                item.click()
-            except WebDriverException:
-                ActionChains(driver).move_to_element(item).click().perform()
-
-            # Wait for values change (simple polling on slices)
-            deadline = time.time() + timeout_update_sec
-            while time.time() < deadline:
-                # re-read labels (order may change)
-                labels = []
-                try:
-                    box = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME, "scrollbox")))
-                    for t in box.find_elements(By.CLASS_NAME, "traces"):
-                        lab = ""
-                        for xp in (".//span[contains(@class,'legendtext')]", ".//span", ".//*[local-name()='text']"):
-                            try:
-                                e = t.find_element(By.XPATH, xp)
-                                txt = (e.text or "").strip()
-                                if txt: lab = txt; break
-                            except Exception:
-                                pass
-                        labels.append(lab)
-                except TimeoutException:
-                    pass
-
-                val_map = {}
-                for s in driver.find_elements(By.XPATH, "//*[name()='g' and contains(@class,'slice')]"):
-                    nodes = s.find_elements(By.XPATH, ".//*[name()='g' and contains(@class,'slicetext')]//*[name()='text']")
-                    raw = " ".join([(n.text or "").strip() for n in nodes if (n.text or "").strip()]).strip()
-                    if not raw: continue
-                    m = re.findall(r"(\d+(?:[.,]\d+)?)", raw)
-                    value = m[-1].replace(",", ".") if m else ""
-                    label = raw[:-len(m[-1])].strip() if m else raw
-                    if label:
-                        val_map[label] = value
-
-                cur_values = [val_map.get(lab, "") for lab in labels]
-                if cur_values != prev_values:
-                    break
-                time.sleep(0.2)
-
-            idx += 1
-            shot = os.path.join(screenshots_dir, f"screenshot{idx}.png")
-            driver.save_screenshot(shot)
-            datasets.append({"index": idx, "labels": labels, "values": cur_values, "screenshot": shot})
-            save_doughnut_data([datasets[-1]], csv_dir)
-
-        return datasets
-
-    except TimeoutException:
-        return []
-
-
-# 3) SAVE: donut datasets → CSV
-def save_doughnut_data(datasets, csv_dir):
+# ---------- Plotly helpers ----------
+def js_get_pie_state(driver: webdriver.Edge, graph_el) -> Dict[str, Any]:
     try:
-        os.makedirs(csv_dir, exist_ok=True)
-        for ds in datasets:
-            labels = ds.get("labels", [])
-            values = ds.get("values", [])
-            out = os.path.join(csv_dir, f"doughnut{ds.get('index', 0)}.csv")
-            pd.DataFrame(zip(labels, values),
-                         columns=["Facility Type", "Min Average Time Spent"]).to_csv(out, index=False)
-    except OSError:
-        pass
+        return driver.execute_script("""
+          const el = arguments[0];
+          if (!el) return {labels:[], values:[], hiddenlabels:[], visiblePairs:[]};
+          const fd = el._fullData || el.data || [];
+          const pie = fd.find(t => (t.type || (t._module && t._module.name)) === 'pie');
+          const labels = (pie && pie.labels) || [];
+          const values = (pie && pie.values) || [];
+          const hl = (el && el._fullLayout && el._fullLayout.hiddenlabels) || [];
+          const visiblePairs = [];
+          for (let i = 0; i < labels.length; i++) {
+            if (!hl.includes(labels[i])) visiblePairs.push([labels[i], values[i]]);
+          }
+          return { labels, values, hiddenlabels: hl, visiblePairs, pieExists: !!pie };
+        """, graph_el)
+    except Exception as e:
+        raise RuntimeError(f"Failed to read pie state: {e}")
 
+def js_set_hiddenlabels(driver: webdriver.Edge, graph_el, hidden: List[str]) -> None:
+    try:
+        driver.execute_script("""
+          const el = arguments[0], hidden = arguments[1] || [];
+          if (window.Plotly && el) Plotly.relayout(el, {hiddenlabels: hidden});
+        """, graph_el, hidden)
+    except Exception as e:
+        raise RuntimeError(f"Failed to set hiddenlabels: {e}")
 
-# ===================== __main__ =====================
-if __name__ == "__main__":
-    html_file_path = os.path.abspath("report.html")
-    screenshots_dir = os.path.abspath("screenshots")
-    csv_dir = os.path.abspath("csv")
-    table_csv_path = os.path.join(csv_dir, "table.csv")
-
-    with SeleniumWebDriverContextManager(headless=False) as driver:
-        driver.get(f"file://{html_file_path}")
-        driver.execute_script("document.body.style.zoom='75%'")
+def wait_hiddenlabels_change(driver: webdriver.Edge, graph_el, before: List[str], timeout: float = 10.0) -> None:
+    try:
+        WebDriverWait(driver, timeout).until(
+            lambda d: js_get_pie_state(d, graph_el).get("hiddenlabels", []) != before
+        )
+    except Exception:
         time.sleep(0.5)
 
-        # 2) SVG-таблиця → 3 колонки → CSV (підхід із твоєї функції)
-        extract_table(driver, save_csv_path=table_csv_path)
+# ---------- Required task functions ----------
+def extract_table(driver: webdriver.Edge, graph) -> Dict[str, Any]:
+    """
+    Extract Plotly 'table' trace data if present. Returns {'header': [...], 'cells': [...]} or {}.
+    """
+    try:
+        data = driver.execute_script("""
+          const el = arguments[0];
+          const fd = el && (el._fullData || el.data) || [];
+          const tableTrace = fd.find(t => (t.type || (t._module && t._module.name)) === 'table');
+          if (tableTrace && tableTrace.header && tableTrace.cells) {
+            return { header: tableTrace.header.values || [], cells: tableTrace.cells.values || [] };
+          }
+          return {};
+        """, graph)
+        return data or {}
+    except Exception as e:
+        raise RuntimeError(f"Failed to extract table: {e}")
 
-        # 3) Donut: скріншоти + CSV per filter (без JS)
-        extract_doughnut_chart(driver, screenshots_dir=screenshots_dir, csv_dir=csv_dir)
+def extract_doughnut_chart(driver: webdriver.Edge, graph, svg, screenshot_index: int) -> Tuple[List[List], int]:
+    """
+    Capture a screenshot and return visible (label, value) pairs of the doughnut chart at current state.
+    """
+    try:
+        driver.execute_script(
+            "const s=document.querySelector('svg.main-svg'); if(s){s.style.pointerEvents='all';}"
+        )
+        time.sleep(0.2)
+        capture(svg, graph, f"screenshot{screenshot_index}.png")
+        state = js_get_pie_state(driver, graph)
+        if not state.get("pieExists", False):
+            print("⚠️ No doughnut/pie trace present")
+        return state.get("visiblePairs", []), screenshot_index + 1
+    except Exception as e:
+        raise RuntimeError(f"Failed to extract doughnut chart: {e}")
+
+def save_doughnut_data(pairs: List[List], csv_index: int) -> int:
+    """
+    Save visible doughnut data to a CSV named sequentially as doughnut{csv_index}.csv
+    """
+    try:
+        filename = f"doughnut{csv_index}.csv"
+        with open(filename, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["Facility Type", "Min Average Time Spent"])
+            for lbl, val in pairs:
+                w.writerow([str(lbl), str(val)])
+        print(f"✅ Saved {filename}")
+        return csv_index + 1
+    except Exception as e:
+        raise RuntimeError(f"Failed to save doughnut CSV: {e}")
+
+# ---------- Orchestration ----------
+def run(headless: bool = False, report_path: str = "report.html") -> None:
+    driver, wait = init_driver(headless=headless)
+    try:
+        open_page(driver, report_path)
+        graph = locate_graph(wait)
+        svg = get_svg(graph, wait)
+
+        # 1) Initial screenshot + CSV for doughnut
+        screenshot_idx = 0
+        csv_idx = 0
+        pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
+        csv_idx = save_doughnut_data(pairs, csv_idx)
+
+        # 2) Iterate filters: one label visible at a time
+        state = js_get_pie_state(driver, graph)
+        labels = state.get("labels", [])
+        if labels:
+            for lbl in labels:
+                before = js_get_pie_state(driver, graph).get("hiddenlabels", [])
+                hidden = [x for x in labels if x != lbl]
+                js_set_hiddenlabels(driver, graph, hidden)
+                wait_hiddenlabels_change(driver, graph, before)
+
+                pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
+                csv_idx = save_doughnut_data(pairs, csv_idx)
+        else:
+            print("⚠️ No pie labels found; skipping filter iteration")
+
+        # 3) Edge case: all hidden
+        if labels:
+            before_all = js_get_pie_state(driver, graph).get("hiddenlabels", [])
+            js_set_hiddenlabels(driver, graph, labels)
+            wait_hiddenlabels_change(driver, graph, before_all)
+
+            pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
+            csv_idx = save_doughnut_data(pairs, csv_idx)
+
+        # 4) Extract table (optional; saved as table.csv if present)
+        table_data = extract_table(driver, graph)
+        if table_data.get("cells"):
+            try:
+                header_values = table_data.get("header", [])
+                cells_values = table_data.get("cells", [])
+                header_row = []
+                for col in header_values:
+                    if isinstance(col, list) and len(col) > 0:
+                        header_row.append(str(col[0]))
+                    else:
+                        header_row.append("")
+                rows = list(zip(*cells_values)) if all(isinstance(c, list) for c in cells_values) else []
+
+                with open("table.csv", "w", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    if header_row and any(h.strip() for h in header_row):
+                        w.writerow(header_row)
+                    for r in rows:
+                        w.writerow([str(x) for x in r])
+                print("✅ Saved table.csv")
+            except Exception as e:
+                print(f"⚠️ Failed to save table.csv: {e}")
+        else:
+            print("ℹ️ No Plotly table trace found; skipping table.csv")
+
+        # Restore to initial state
+        try:
+            js_set_hiddenlabels(driver, graph, [])
+        except Exception:
+            pass
+    finally:
+        driver.quit()
+
+
+if __name__ == "__main__":
+    run(headless=False, report_path="report.html")
