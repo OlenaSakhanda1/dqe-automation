@@ -193,18 +193,12 @@ def run(headless: bool = False, report_path: str = "report.html") -> None:
         state = js_get_pie_state(driver, graph)
         labels = state.get("labels", [])
         if labels:
-            # Кроки:
-            # 1) приховати 1-й лейбл -> залишиться N-1 сегмент
-            # 2) приховати 1-й і 2-й -> залишиться N-2 сегменти
-            # ...
-            # N) приховати всі -> 0 сегментів
             for hide_count in range(1, len(labels) + 1):
                 try:
                     before = js_get_pie_state(driver, graph).get("hiddenlabels", [])
-                    hidden = labels[:hide_count]  # прогресивно додаємо приховані
+                    hidden = labels[:hide_count]
                     js_set_hiddenlabels(driver, graph, hidden)
                     wait_hiddenlabels_change(driver, graph, before)
-                    # невелика пауза, щоб рендер стабілізувався
                     time.sleep(0.2)
                     pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
                     csv_idx = save_doughnut_data(pairs, csv_idx)
