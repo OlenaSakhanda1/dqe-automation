@@ -10,23 +10,40 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
+import base64
+
 GRAPH_ID = "f2be9861-78e2-4f00-aa5f-9778ee33830a"
+
+def screenshot_plotly_to_image(driver, graph, out_path):
+    data_uri = driver.execute_script("""
+        const el = arguments[0];
+        return Plotly.toImage(el, {format:'png', width:1200, height:700});
+    """, graph)
+    b64 = data_uri.split(",", 1)[1]
+    with open(out_path, "wb") as f:
+        f.write(base64.b64decode(b64))
 
 # ---------- Driver & Page ----------
 
-def init_driver(headless: bool = False) -> Tuple[webdriver.Edge, WebDriverWait]:
+def init_driver(headless: bool = False) -> Tuple[webdriver.Chrome, WebDriverWait]:
     try:
         opts = Options()
         # driver = webdriver.Edge(options=opts)
         driver = Chrome(options=opts)
+
+        driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+            "width": 1600,  # достатній розмір
+            "height": 1200,
+            "deviceScaleFactor": 1,  # без масштабування
+            "mobile": False,
+        })
         wait = WebDriverWait(driver, 20)
         return driver, wait
     except Exception as e:
         print(f"❌ Driver initialization failed: {e}")
         raise
 
-
-def open_page(driver: webdriver.Edge, report_path: str) -> None:
+def open_page(driver: webdriver.Chrome, report_path: str) -> None:
     try:
         driver.get(os.path.abspath(report_path))
     except Exception as e:
@@ -70,7 +87,7 @@ def capture(target, fallback, filename: str) -> None:
 
 # ---------- Plotly helpers ----------
 
-def js_get_pie_state(driver: webdriver.Edge, graph_el) -> Dict[str, Any]:
+def js_get_pie_state(driver: webdriver.Chrome, graph_el) -> Dict[str, Any]:
     try:
         return driver.execute_script("""
           const el = arguments[0];
@@ -91,7 +108,7 @@ def js_get_pie_state(driver: webdriver.Edge, graph_el) -> Dict[str, Any]:
         raise
 
 
-def js_set_hiddenlabels(driver: webdriver.Edge, graph_el, hidden: List[str]) -> None:
+def js_set_hiddenlabels(driver: webdriver.Chrome, graph_el, hidden: List[str]) -> None:
     try:
         driver.execute_script("""
           const el = arguments[0], hidden = arguments[1] || [];
@@ -103,7 +120,7 @@ def js_set_hiddenlabels(driver: webdriver.Edge, graph_el, hidden: List[str]) -> 
         raise
 
 
-def wait_hiddenlabels_change(driver: webdriver.Edge, graph_el, before: List[str], timeout: float = 10.0) -> None:
+def wait_hiddenlabels_change(driver: webdriver.Chrome, graph_el, before: List[str], timeout: float = 10.0) -> None:
     try:
         WebDriverWait(driver, timeout).until(
             lambda d: js_get_pie_state(d, graph_el).get("hiddenlabels", []) != before
@@ -115,7 +132,7 @@ def wait_hiddenlabels_change(driver: webdriver.Edge, graph_el, before: List[str]
 
 # ---------- Required task functions ----------
 
-def extract_table(driver: webdriver.Edge, graph) -> Dict[str, Any]:
+def extract_table(driver: webdriver.Chrome, graph) -> Dict[str, Any]:
     """
     Extract Plotly 'table' trace data if present.
     Returns {'header': [...], 'cells': [...]} or {}.
@@ -135,24 +152,28 @@ def extract_table(driver: webdriver.Edge, graph) -> Dict[str, Any]:
         print(f"❌ Failed to extract table trace: {e}")
         return {}
 
-
-def extract_doughnut_chart(driver: webdriver.Edge, graph, svg, screenshot_index: int) -> Tuple[List[List], int]:
-    """
-    Capture a screenshot and return visible (label, value) pairs of the doughnut chart at current state.
-    """
+def extract_doughnut_chart(driver, graph, svg, screenshot_index: int):
     try:
-        driver.execute_script("const s=document.querySelector('svg.main-svg'); if(s){s.style.pointerEvents='all';}")
+        driver.execute_script("""
+            const el = arguments[0];
+            if (window.Plotly && el) {
+                Plotly.relayout(el, {autosize:false, width:1200, height:700});
+            }
+        """, graph)
         time.sleep(0.2)
-        capture(svg, graph, f"screenshot{screenshot_index}.png")
+
+        out_name = f"screenshot{screenshot_index}.png"
+        screenshot_plotly_to_image(driver, graph, out_name)
+
+        print(f"📸 Saved {out_name}")
+
         state = js_get_pie_state(driver, graph)
         if not state.get("pieExists", False):
             print("⚠️ No doughnut/pie trace present")
-        print(f"📸 Saved screenshot{screenshot_index}.png")
         return state.get("visiblePairs", []), screenshot_index + 1
     except Exception as e:
         print(f"❌ Failed to extract doughnut chart: {e}")
         return [], screenshot_index
-
 
 def save_doughnut_data(pairs: List[List], csv_index: int) -> int:
     """
@@ -241,6 +262,30 @@ def run(headless: bool = False, report_path: str = "report.html") -> None:
             print("✅ Driver closed")
         except Exception as e:
             print(f"⚠️ Driver close failed: {e}")
+
+
+# --- Precise screenshot of an element even if partly off-screen ---
+def _make_visible_and_unclip(driver, el):
+    # 1) Прокрутити в центр viewport
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block:'center', inline:'center'});", el
+    )
+    time.sleep(0.1)
+    # 2) Тимчасово прибрати overflow:hidden у предків (щоб не різало)
+    driver.execute_script("""
+    const el = arguments[0];
+    let node = el;
+    while (node && node instanceof Element) {
+        const cs = getComputedStyle(node);
+        if (cs.overflow === 'hidden' || cs.overflowX === 'hidden' || cs.overflowY === 'hidden') {
+            node.__oldOverflow = [node.style.overflow, node.style.overflowX, node.style.overflowY];
+            node.style.overflow = 'visible';
+            node.style.overflowX = 'visible';
+            node.style.overflowY = 'visible';
+        }
+        node = node.parentElement;
+    }
+    """, el)
 
 
 if __name__ == "__main__":
