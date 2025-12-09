@@ -1,26 +1,24 @@
-
-import csv
-import os
-import time
+import csv, os, time
 from typing import List, Tuple, Dict, Any
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.options import Options
+# from selenium.webdriver.edge.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.options import Options
 
 GRAPH_ID = "f2be9861-78e2-4f00-aa5f-9778ee33830a"
-
 
 # ---------- Driver & Page ----------
 
 def init_driver(headless: bool = False) -> Tuple[webdriver.Edge, WebDriverWait]:
     try:
         opts = Options()
-        # if headless: opts.add_argument("--headless=new")
-        driver = webdriver.Edge(options=opts)
+        # driver = webdriver.Edge(options=opts)
+        driver = Chrome(options=opts)
         wait = WebDriverWait(driver, 20)
         return driver, wait
     except Exception as e:
@@ -184,39 +182,37 @@ def run(headless: bool = False, report_path: str = "report.html") -> None:
         svg = get_svg(graph, wait)
 
         # Initial doughnut
+
+        # Initial doughnut
         screenshot_idx = 0
         csv_idx = 0
         pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
         csv_idx = save_doughnut_data(pairs, csv_idx)
 
-        # Iterate filters: one label visible at a time
+        # Iterate: each next state hides one more label than previous
         state = js_get_pie_state(driver, graph)
         labels = state.get("labels", [])
         if labels:
-            for lbl in labels:
+            # Кроки:
+            # 1) приховати 1-й лейбл -> залишиться N-1 сегмент
+            # 2) приховати 1-й і 2-й -> залишиться N-2 сегменти
+            # ...
+            # N) приховати всі -> 0 сегментів
+            for hide_count in range(1, len(labels) + 1):
                 try:
                     before = js_get_pie_state(driver, graph).get("hiddenlabels", [])
-                    hidden = [x for x in labels if x != lbl]
+                    hidden = labels[:hide_count]  # прогресивно додаємо приховані
                     js_set_hiddenlabels(driver, graph, hidden)
                     wait_hiddenlabels_change(driver, graph, before)
+                    # невелика пауза, щоб рендер стабілізувався
+                    time.sleep(0.2)
                     pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
                     csv_idx = save_doughnut_data(pairs, csv_idx)
                 except Exception as e:
-                    print(f"⚠️ Filter '{lbl}' failed: {e}")
-                    continue
+                    print(f"⚠️ Progressive hide step {hide_count} failed: {e}")
+                    break
         else:
-            print("⚠️ No pie labels found; skipping filter iteration")
-
-        # Edge case: all hidden
-        if labels:
-            try:
-                before_all = js_get_pie_state(driver, graph).get("hiddenlabels", [])
-                js_set_hiddenlabels(driver, graph, labels)
-                wait_hiddenlabels_change(driver, graph, before_all)
-                pairs, screenshot_idx = extract_doughnut_chart(driver, graph, svg, screenshot_idx)
-                csv_idx = save_doughnut_data(pairs, csv_idx)
-            except Exception as e:
-                print(f"⚠️ Edge case 'all hidden' failed: {e}")
+            print("⚠️ No pie labels found; skipping progressive iteration")
 
         # Extract table (optional save)
         table_data = extract_table(driver, graph)
